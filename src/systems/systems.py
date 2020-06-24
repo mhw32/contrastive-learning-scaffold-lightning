@@ -14,7 +14,7 @@ from src.datasets import datasets
 from src.models.resnet import resnet18
 from src.objectives.memory import MemoryBank
 from src.models.logreg import LogisticRegression
-from src.objectives.isntdisc import InstDisc
+from src.objectives.instdisc import InstDisc
 from src.utils import utils
 
 import pytorch_lightning as pl
@@ -58,7 +58,8 @@ class PretrainSystem(pl.LightningModule):
         return [optim], []
 
     def forward(self, img):
-        return self.model(img)
+        outputs = self.model(img)
+        return outputs
 
     def get_losses_for_batch(self, batch, train=True):
         indices, img, _, = batch

@@ -24,7 +24,7 @@ def get_datasets(dataset_name):
 def load_default_transforms(dataset):
     # resize imagenet to 256
     train_transforms = transforms.Compose([
-        transforms.RandomResizedCrop(256, scale=(0.2, 1.)),
+        transforms.RandomResizedCrop(224, scale=(0.2, 1.)),
         transforms.RandomGrayscale(p=0.2),
         transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
         transforms.RandomHorizontalFlip(),
