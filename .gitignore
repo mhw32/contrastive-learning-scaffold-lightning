@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+**__pycache__**
+**.pyc
+**.ipynb_checkpoints
+**MNIST/
+**lightning_logs/
