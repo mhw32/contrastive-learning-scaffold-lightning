@@ -17,5 +17,5 @@ source init_env.sh
 2. Edit the config files to path the right paths.
 3. Run the main script
 ```
-python run.py ./config/pretrain.json --gpu-device 0
+python scripts/run.py ./config/cifar10/pretrain.json --gpu-device 0
 ```
