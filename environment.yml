@@ -5,7 +5,7 @@ dependencies:
   - _libgcc_mutex=0.1=main
   - backcall=0.1.0=py37_0
   - ca-certificates=2020.1.1=0
-  - gmp=6.1.2=h6c8ec71_1
+  - gmp=6.1.2
   - importlib_metadata=1.5.0=py37_0
   - ipykernel=5.1.4=py37h39e3cac_0
   - ipython=7.13.0=py37h5ca1d4c_0
@@ -14,48 +14,46 @@ dependencies:
   - jsonschema=3.2.0=py37_0
   - jupyter_client=6.1.3=py_0
   - jupyter_core=4.6.3=py37_0
-  - libedit=3.1.20181209=hc058e9b_0
-  - libffi=3.2.1=hd88cf55_4
-  - libgcc-ng=9.1.0=hdf63c60_0
-  - libsodium=1.0.16=h1bed415_0
-  - libstdcxx-ng=9.1.0=hdf63c60_0
-  - markupsafe=1.1.1=py37h7b6447c_0
-  - mistune=0.8.4=py37h7b6447c_0
+  - libedit=3.1.20181209
+  - libffi=3.2.1
+  - libsodium=1.0.16
+  - markupsafe=1.1.1
+  - mistune=0.8.4
   - nb_conda_kernels=2.2.3=py37_0
   - nbconvert=5.6.1=py37_0
   - nbformat=5.0.6=py_0
-  - ncurses=6.2=he6710b0_1
+  - ncurses=6.2
   - notebook=6.0.3=py37_0
-  - openssl=1.1.1g=h7b6447c_0
+  - openssl=1.1.1g
   - pandoc=2.2.3.2=0
   - pandocfilters=1.4.2=py37_1
   - parso=0.7.0=py_0
   - pexpect=4.8.0=py37_0
   - pickleshare=0.7.5=py37_0
+  - pip
   - prometheus_client=0.7.1=py_0
   - prompt-toolkit=3.0.4=py_0
   - prompt_toolkit=3.0.4=0
   - ptyprocess=0.6.0=py37_0
   - pygments=2.6.1=py_0
-  - pyrsistent=0.16.0=py37h7b6447c_0
-  - python=3.7.4=h265db76_1
-  - pyzmq=18.1.1=py37he6710b0_0
-  - readline=7.0=h7b6447c_5
+  - pyrsistent=0.16.0
+  - python=3.7.4
+  - pyzmq=18.1.1
+  - readline=7.0
   - send2trash=1.5.0=py37_0
   - setuptools=46.4.0=py37_0
-  - sqlite=3.31.1=h62c20be_1
+  - sqlite=3.31.1
   - terminado=0.8.3=py37_0
   - testpath=0.4.4=py_0
-  - tk=8.6.8=hbc83047_0
+  - tk=8.6.8
   - traitlets=4.3.3=py37_0
   - wcwidth=0.1.9=py_0
   - wheel=0.34.2=py37_0
-  - xz=5.2.5=h7b6447c_0
-  - zeromq=4.3.1=he6710b0_3
+  - xz=5.2.5
+  - zeromq=4.3.1
   - zipp=3.1.0=py_0
-  - zlib=1.2.11=h7b6447c_3
-  - pytorch=1.4.0=py3.7_cuda10.1.243_cudnn7.6.3_0
-  - torchvision=0.5.0=py37_cu101
+  - zlib=1.2.11
+  - pytorch=1.4.0
   - pip:
     - absl-py==0.9.0
     - alabaster==0.7.12
