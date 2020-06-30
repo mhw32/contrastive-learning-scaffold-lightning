@@ -15,7 +15,7 @@ SYSTEM = {
 def run(config_path, gpu_device=-1):
     config = process_config(config_path)
     if gpu_device >= 0: config.gpu_device = gpu_device
-    seed_everything(config.seed)
+    seed_everything(config.seed, use_cuda=config.cuda)
     SystemClass = SYSTEM[config.system]
     system = SystemClass(config)
 
@@ -26,7 +26,7 @@ def run(config_path, gpu_device=-1):
     )
     trainer = pl.Trainer(
         default_save_path=config.exp_dir,
-        gpus=[config.gpu_device],
+        gpus=([config.gpu_device] if config.cuda else None),
         max_epochs=config.num_epochs,
         min_epochs=config.num_epochs,
         checkpoint_callback=ckpt_callback,
@@ -36,10 +36,10 @@ def run(config_path, gpu_device=-1):
     trainer.fit(system)
 
 
-def seed_everything(seed):
+def seed_everything(seed, use_cuda=True):
     random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    if use_cuda: torch.cuda.manual_seed_all(seed)
     numpy.random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
 
