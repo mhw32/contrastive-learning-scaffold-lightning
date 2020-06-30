@@ -45,22 +45,10 @@ def _process_config(config_json, override_dotmap=None):
     print()
 
     # NOTE: current setup overwrite every time...
-    exp_base = config.exp_base
-
-    if 'atamkin' in exp_base or 'wumike' in exp_base:
-        # Excise existing user-specific prefix (like '/mnt/fs5/wumike/).
-        exp_base = '/'.join(exp_base.split('/')[4:])
-        if getpass.getuser() == 'atamkin':
-            prefix = '/mnt/fs2/atamkin/'
-        elif getpass.getuser() == 'wumike':
-            prefix = '/mnt/fs5/wumike/'
-        else:
-            raise RuntimeError(f'Prefix not yet implemented for user {getpass.getuser()}.')
-        exp_base = os.path.join(prefix, exp_base)
 
     # Uncomment me if you wish to not overwrite
     # timestamp = strftime('%Y-%m-%d--%H_%M_%S', localtime())
-    exp_dir = os.path.join(exp_base, "experiments", config.exp_name)
+    exp_dir = os.path.join(config.exp_base, "experiments", config.exp_name)
     config.exp_dir = exp_dir
 
     # create some important directories to be used for the experiment.
