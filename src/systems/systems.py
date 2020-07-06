@@ -143,7 +143,7 @@ class PretrainTwoViewsSystem(PretrainSystem):
 
         if train:
             with torch.no_grad():
-                new_data_memory = loss_fn.updated_new_data_memory()
+                new_data_memory = (outputs1 + outputs2) / 2.
                 self.memory_bank.update(indices, new_data_memory)
 
         return loss
