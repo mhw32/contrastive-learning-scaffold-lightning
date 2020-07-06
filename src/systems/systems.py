@@ -14,7 +14,7 @@ from src.datasets import datasets
 from src.models.resnet import resnet18
 from src.objectives.memory import MemoryBank
 from src.models.logreg import LogisticRegression
-from src.objectives.instdisc import InstDisc
+from src.objectives.instdisc import InstDisc, NCE, Ball, Ring
 from src.utils import utils
 
 import pytorch_lightning as pl
@@ -64,10 +64,10 @@ class PretrainSystem(pl.LightningModule):
     def get_losses_for_batch(self, batch, train=True):
         indices, img, _, = batch
         outputs = self.forward(img)
-        loss_fn = InstDisc(indices, outputs, self.memory_bank,
-                           k=self.config.loss_params.k,
-                           t=self.config.loss_params.t,
-                           m=self.config.loss_params.m)
+        loss_fn = NCE(indices, outputs, self.memory_bank,
+                      k=self.config.loss_params.k,
+                      t=self.config.loss_params.t,
+                      m=self.config.loss_params.m)
         loss = loss_fn.get_loss()
 
         if train:
