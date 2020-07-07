@@ -4,7 +4,7 @@ from src.datasets.imagenet import ImageNet, ImageNetTwoViews
 
 DATASET = {
     'cifar10': CIFAR10,
-    'imagenet': ImageNet
+    'imagenet': ImageNet,
     'cifar10_2views': CIFAR10TwoViews,
     'imagenet_2views': ImageNetTwoViews,
 }
