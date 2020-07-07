@@ -39,17 +39,6 @@ class InstDisc(object):
 
 class NCE(InstDisc):
 
-    def __init__(self, indices, outputs, memory_bank, k=4096, t=0.07, m=0.5):
-        super().__init__()
-        self.k, self.t, self.m = k, t, m
-
-        self.indices = indices.detach()
-        self.outputs = l2_normalize(outputs, dim=1)
-
-        self.memory_bank = memory_bank
-        self.device = outputs.device
-        self.data_len = memory_bank.size
-
     def get_loss(self):
         batch_size = self.outputs.size(0)
         witness_score = self.memory_bank.get_dot_products(self.outputs, self.indices)

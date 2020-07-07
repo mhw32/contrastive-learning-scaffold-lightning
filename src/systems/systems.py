@@ -137,7 +137,7 @@ class PretrainTwoViewsSystem(PretrainSystem):
         indices, img1, img2, _, = batch
         outputs1 = self.forward(img1)
         outputs2 = self.forward(img2)
-        loss_fn = SimCLR(indices, outputs1, outputs2, 
+        loss_fn = SimCLR(outputs1, outputs2, 
                          t=self.config.loss_params.t)
         loss = loss_fn.get_loss()
 
