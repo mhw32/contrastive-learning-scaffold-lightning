@@ -8,6 +8,7 @@ import pytorch_lightning as pl
 
 SYSTEM = {
     'PretrainSystem': systems.PretrainSystem,
+    'PretrainTwoViewsSystem': systems.PretrainTwoViewsSystem,
     'TransferSystem': systems.TransferSystem,
 }
 

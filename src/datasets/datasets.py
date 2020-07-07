@@ -1,10 +1,12 @@
 from torchvision import transforms
-from src.datasets.cifar10 import CIFAR10
-from src.datasets.imagenet import ImageNet
+from src.datasets.cifar10 import CIFAR10, CIFAR10TwoViews
+from src.datasets.imagenet import ImageNet, ImageNetTwoViews
 
 DATASET = {
     'cifar10': CIFAR10,
-    'imagenet': ImageNet
+    'imagenet': ImageNet,
+    'cifar10_2views': CIFAR10TwoViews,
+    'imagenet_2views': ImageNetTwoViews,
 }
 
 def get_datasets(dataset_name):

@@ -34,3 +34,11 @@ class ImageNet(data.Dataset):
 
     def __len__(self):
         return len(self.dataset)
+
+
+class ImageNetTwoViews(ImageNet):
+
+    def __getitem__(self, index):
+        img_data, label = self.dataset.__getitem__(index)
+        img2_data, _ = self.dataset.__getitem__(index)
+        return index, img_data.float(), img2_data.float(), label

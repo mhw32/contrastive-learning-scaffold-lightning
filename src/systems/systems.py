@@ -14,7 +14,7 @@ from src.datasets import datasets
 from src.models.resnet import resnet18
 from src.objectives.memory import MemoryBank
 from src.models.logreg import LogisticRegression
-from src.objectives.instdisc import InstDisc
+from src.objectives.instdisc import InstDisc, NCE, Ball, Ring, SimCLR
 from src.utils import utils
 
 import pytorch_lightning as pl
@@ -64,10 +64,10 @@ class PretrainSystem(pl.LightningModule):
     def get_losses_for_batch(self, batch, train=True):
         indices, img, _, = batch
         outputs = self.forward(img)
-        loss_fn = InstDisc(indices, outputs, self.memory_bank,
-                           k=self.config.loss_params.k,
-                           t=self.config.loss_params.t,
-                           m=self.config.loss_params.m)
+        loss_fn = NCE(indices, outputs, self.memory_bank,
+                      k=self.config.loss_params.k,
+                      t=self.config.loss_params.t,
+                      m=self.config.loss_params.m)
         loss = loss_fn.get_loss()
 
         if train:
@@ -129,6 +129,46 @@ class PretrainSystem(pl.LightningModule):
     @pl.data_loader
     def val_dataloader(self):
         return create_dataloader(self.val_dataset, self.config, shuffle=False)
+
+
+class PretrainTwoViewsSystem(PretrainSystem):
+
+    def get_losses_for_batch(self, batch, train=True):
+        indices, img1, img2, _, = batch
+        outputs1 = self.forward(img1)
+        outputs2 = self.forward(img2)
+        loss_fn = SimCLR(indices, outputs1, outputs2, 
+                         t=self.config.loss_params.t)
+        loss = loss_fn.get_loss()
+
+        if train:
+            with torch.no_grad():
+                new_data_memory = (outputs1 + outputs2) / 2.
+                self.memory_bank.update(indices, new_data_memory)
+
+        return loss
+
+    def get_nearest_neighbor_label(self, batch):
+        """
+        NOTE: ONLY TO BE USED FOR VALIDATION.
+
+        For each image in validation, find the nearest image in the 
+        training dataset using the memory bank. Assume its label as
+        the predicted label.
+        """
+        _, img, _, label = batch
+        outputs = self.forward(img)
+
+        all_dps = self.memory_bank.get_all_dot_products(outputs)
+        _, neighbor_idxs = torch.topk(all_dps, k=1, sorted=False, dim=1)
+        neighbor_idxs = neighbor_idxs.squeeze(1)
+        neighbor_idxs = neighbor_idxs.cpu().numpy()
+
+        neighbor_labels = self.train_ordered_labels[neighbor_idxs]
+        neighbor_labels = torch.from_numpy(neighbor_labels).long()
+
+        num_correct = torch.sum(neighbor_labels.cpu() == label.cpu()).item()
+        return num_correct, img.size(0)
 
 
 class TransferSystem(pl.LightningModule):
