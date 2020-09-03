@@ -1,0 +1,33 @@
+{
+    "exp_base": null,
+    "exp_name": "pretrain_simclr_cifar10",
+    "system": "PretrainTwoViewsSystem",
+    "cuda": true,
+    "gpu_device": 8,
+    "seed": 1337,
+    "data_loader_workers": 8,
+    "data_params": {
+        "dataset": "cifar10_2views"
+    },
+    "model_params": {
+        "out_dim": 128,
+        "projection_head": true
+    },
+    "loss_params": {
+        "loss": "SimCLR",
+        "t": 0.07
+    },
+    "optim_params": {
+        "batch_size": 256,
+        "learning_rate": 0.03,
+        "momentum": 0.9,
+        "weight_decay": 1e-4,
+        "validate_freq": 1,
+        "patience": 10,
+        "num_view_update": 1
+    },
+    "num_epochs": 200,
+    "validate": true,
+    "copy_checkpoint_freq": 5,
+    "continue_from_checkpoint": null
+}

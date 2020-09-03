@@ -1,21 +1,23 @@
 {
     "exp_base": null,
-    "exp_name": "pretrain_cifar10",
-    "system": "PretrainSystem",
+    "exp_name": "pretrain_moco_cifar10",
+    "system": "PretrainTwoViewsSystem",
     "cuda": true,
     "gpu_device": 8,
     "seed": 1337,
     "data_loader_workers": 8,
     "data_params": {
-        "dataset": "cifar10"
+        "dataset": "cifar10_2views"
     },
     "model_params": {
-        "out_dim": 128
+        "out_dim": 128,
+        "projection_head": true
     },
     "loss_params": {
-        "k": 4096,
+        "loss": "MoCo",
         "t": 0.07,
-        "m": 0
+        "k": 65536,
+        "m": 0.999
     },
     "optim_params": {
         "batch_size": 256,
