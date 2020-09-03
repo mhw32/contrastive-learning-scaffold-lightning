@@ -4,17 +4,17 @@ from dotmap import DotMap
 from collections import OrderedDict
 
 import torch
+import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from torchvision.datasets import MNIST
-import torchvision
 
 from src.datasets import datasets
 from src.models.resnet import resnet18
 from src.objectives.memory import MemoryBank
 from src.models.logreg import LogisticRegression
 from src.objectives.instdisc import InstDisc, NCE, Ball, Ring, SimCLR
+from src.objectives.moco import MoCo
 from src.utils import utils
 
 import pytorch_lightning as pl
@@ -27,6 +27,7 @@ def create_dataloader(dataset, config, shuffle=True):
         batch_size=config.optim_params.batch_size,
         shuffle=shuffle, 
         pin_memory=True,
+        drop_last=True,
         num_workers=config.data_loader_workers,
     )
     return loader
@@ -37,7 +38,6 @@ class PretrainSystem(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.device = f'cuda:{config.gpu_device}' if config.cuda else 'cpu'
         self.train_dataset, self.val_dataset = datasets.get_datasets(
             config.data_params.dataset)
         train_labels = self.train_dataset.dataset.targets
