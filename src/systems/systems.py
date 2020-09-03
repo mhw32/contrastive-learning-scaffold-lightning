@@ -44,8 +44,7 @@ class PretrainSystem(pl.LightningModule):
         self.train_ordered_labels = np.array(train_labels)
         self.model = self.create_encoder()
         self.memory_bank = MemoryBank(len(self.train_dataset), 
-                                      self.config.model_params.out_dim, 
-                                      device=self.device)
+                                      self.config.model_params.out_dim)
 
     def create_encoder(self):
         model = resnet18(low_dim=self.config.model_params.out_dim)
@@ -119,7 +118,7 @@ class PretrainSystem(pl.LightningModule):
                               'val_num_total': batch_size})
         return output
     
-    def validation_end(self, outputs):
+    def validation_epoch_end(self, outputs):
         metrics = {}
         for key in outputs[0].keys():
             metrics[key] = torch.tensor([elem[key] for elem in outputs]).float().mean()
@@ -222,12 +221,6 @@ class PretrainTwoViewsSystem(PretrainSystem):
     def _momentum_update_key_encoder(self):
         m = self.config.loss_params.m
         for param_q, param_k in zip(self.model.parameters(), self.model_k.parameters()):
-            param_k.data = param_k.data * m + param_q.data * (1. - m)
-
-    @torch.no_grad()
-    def _momentum_update_viewmaker(self):
-        m = self.config.loss_params.m
-        for param_q, param_k in zip(self.viewmaker.parameters(), self.viewmaker_k.parameters()):
             param_k.data = param_k.data * m + param_q.data * (1. - m)
 
     @torch.no_grad()
@@ -376,7 +369,7 @@ class TransferSystem(pl.LightningModule):
             'val_acc': num_correct / float(num_total)
         })
 
-    def validation_end(self, outputs):
+    def validation_epoch_end(self, outputs):
         metrics = {}
         for key in outputs[0].keys():
             metrics[key] = torch.tensor([elem[key] for elem in outputs]).float().mean()

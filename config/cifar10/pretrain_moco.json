@@ -1,5 +1,5 @@
 {
-    "exp_base": null,
+    "exp_base": "/mnt/fs5/wumike/tmp",
     "exp_name": "pretrain_moco_cifar10",
     "system": "PretrainTwoViewsSystem",
     "cuda": true,
@@ -14,7 +14,7 @@
         "projection_head": true
     },
     "loss_params": {
-        "loss": "MoCo",
+        "name": "MoCo",
         "t": 0.07,
         "k": 65536,
         "m": 0.999
