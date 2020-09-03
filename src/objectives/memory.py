@@ -1,26 +1,28 @@
 import torch
+import torch.nn as nn
+
 import numpy as np
 
 from src.utils.utils import l2_normalize
 
 
-class MemoryBank(object):
+class MemoryBank(nn.Module):
     """For efficiently computing the background vectors."""
 
-    def __init__(self, size, dim, device):
+    def __init__(self, size, dim):
+        super().__init__()
         self.size = size
         self.dim = dim
-        self.device = device
-        self._bank = self._create()
+        self.register_buffer('_bank', self._create())
 
     def _create(self):
         # initialize random weights
-        mb_init = torch.rand(self.size, self.dim, device=self.device)
+        mb_init = torch.rand(self.size, self.dim, requires_grad=False)
         std_dev = 1. / np.sqrt(self.dim / 3)
         mb_init = mb_init * (2 * std_dev) - std_dev
         # L2 normalise so that the norm is 1
         mb_init = l2_normalize(mb_init, dim=1)
-        return mb_init.detach()  # detach so its not trainable
+        return mb_init
 
     def as_tensor(self):
         return self._bank

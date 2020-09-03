@@ -4,17 +4,17 @@ from dotmap import DotMap
 from collections import OrderedDict
 
 import torch
+import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from torchvision.datasets import MNIST
-import torchvision
 
 from src.datasets import datasets
 from src.models.resnet import resnet18
 from src.objectives.memory import MemoryBank
 from src.models.logreg import LogisticRegression
 from src.objectives.instdisc import InstDisc, NCE, Ball, Ring, SimCLR
+from src.objectives.moco import MoCo
 from src.utils import utils
 
 import pytorch_lightning as pl
@@ -27,6 +27,7 @@ def create_dataloader(dataset, config, shuffle=True):
         batch_size=config.optim_params.batch_size,
         shuffle=shuffle, 
         pin_memory=True,
+        drop_last=True,
         num_workers=config.data_loader_workers,
     )
     return loader
@@ -37,18 +38,24 @@ class PretrainSystem(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.device = f'cuda:{config.gpu_device}' if config.cuda else 'cpu'
         self.train_dataset, self.val_dataset = datasets.get_datasets(
             config.data_params.dataset)
         train_labels = self.train_dataset.dataset.targets
         self.train_ordered_labels = np.array(train_labels)
         self.model = self.create_encoder()
         self.memory_bank = MemoryBank(len(self.train_dataset), 
-                                      self.config.model_params.out_dim, 
-                                      device=self.device)
+                                      self.config.model_params.out_dim)
 
     def create_encoder(self):
-        return resnet18(low_dim=self.config.model_params.out_dim)
+        model = resnet18(low_dim=self.config.model_params.out_dim)
+        if self.config.model_params.projection_head:
+            mlp_dim = model.fc.weight.size(1)
+            model.fc = nn.Sequential(
+                nn.Linear(mlp_dim, mlp_dim),
+                nn.ReLU(),
+                model.fc,
+            )
+        return model
 
     def configure_optimizers(self):
         optim = torch.optim.SGD(self.model.parameters(),
@@ -58,8 +65,7 @@ class PretrainSystem(pl.LightningModule):
         return [optim], []
 
     def forward(self, img):
-        outputs = self.model(img)
-        return outputs
+        return self.model(img)
 
     def get_losses_for_batch(self, batch, train=True):
         indices, img, _, = batch
@@ -112,7 +118,7 @@ class PretrainSystem(pl.LightningModule):
                               'val_num_total': batch_size})
         return output
     
-    def validation_end(self, outputs):
+    def validation_epoch_end(self, outputs):
         metrics = {}
         for key in outputs[0].keys():
             metrics[key] = torch.tensor([elem[key] for elem in outputs]).float().mean()
@@ -133,17 +139,58 @@ class PretrainSystem(pl.LightningModule):
 
 class PretrainTwoViewsSystem(PretrainSystem):
 
+    def __init__(self, config):
+        super().__init__(config)
+
+        self.loss_name = self.config.loss_params.name
+        if self.loss_name == 'MoCo':
+            self.model_k = self.create_encoder()
+
+            for param_q, param_k in zip(self.model.parameters(), self.model_k.parameters()):
+                param_k.data.copy_(param_q.data)  # initialize
+                param_k.requires_grad = False     # do not update
+
+            # create queue (k x out_dim)
+            moco_queue = torch.randn(
+                self.config.loss_params.k,
+                self.config.model_params.out_dim, 
+            )
+            self.register_buffer("moco_queue", moco_queue)
+            self.moco_queue = utils.l2_normalize(moco_queue, dim=1)
+            self.register_buffer("moco_queue_ptr", torch.zeros(1, dtype=torch.long))
+
     def get_losses_for_batch(self, batch, train=True):
         indices, img1, img2, _, = batch
         outputs1 = self.forward(img1)
-        outputs2 = self.forward(img2)
-        loss_fn = SimCLR(outputs1, outputs2, 
-                         t=self.config.loss_params.t)
-        loss = loss_fn.get_loss()
+
+        if self.loss_name == 'SimCLR':
+            outputs2 = self.forward(img2)
+            loss_fn = SimCLR(outputs1, outputs2, 
+                             t=self.config.loss_params.t)
+            loss = loss_fn.get_loss()
+        elif self.loss_name == 'MoCo':
+            with torch.no_grad():
+                self._momentum_update_key_encoder()
+                if self.use_ddp or self.use_ddp2:
+                    img2, idx_unshuffle = self._batch_shuffle_ddp(img2)
+                outputs2 = self.model_k(img2)
+                if self.use_ddp or self.use_ddp2:
+                    outputs_k = self._batch_unshuffle_ddp(outputs_k, idx_unshuffle)
+
+            loss_fn = MoCo(outputs1, outputs2, 
+                           self.moco_queue.clone().detach(),
+                           t=self.config.loss_params.t)
+            loss = loss_fn.get_loss()
+
+            if train:
+                outputs_k = utils.l2_normalize(outputs2, dim=1)
+                self._dequeue_and_enqueue(outputs_k)
+        else:
+            raise Exception(f'Loss {self.loss_name} not supported.')
 
         if train:
             with torch.no_grad():
-                new_data_memory = (outputs1 + outputs2) / 2.
+                new_data_memory = utils.l2_normalize(outputs1)
                 self.memory_bank.update(indices, new_data_memory)
 
         return loss
@@ -169,6 +216,78 @@ class PretrainTwoViewsSystem(PretrainSystem):
 
         num_correct = torch.sum(neighbor_labels.cpu() == label.cpu()).item()
         return num_correct, img.size(0)
+
+    @torch.no_grad()
+    def _momentum_update_key_encoder(self):
+        m = self.config.loss_params.m
+        for param_q, param_k in zip(self.model.parameters(), self.model_k.parameters()):
+            param_k.data = param_k.data * m + param_q.data * (1. - m)
+
+    @torch.no_grad()
+    def _dequeue_and_enqueue(self, keys):
+        # gather keys before updating queue
+        if self.use_ddp or self.use_ddp2:
+            keys = utils.concat_all_gather(keys)
+
+        batch_size = keys.size(0)
+
+        k = self.config.loss_params.k
+        ptr = int(self.moco_queue_ptr)
+        assert k % batch_size == 0  # why?
+
+        # replace keys at ptr
+        self.moco_queue[ptr:ptr+batch_size] = keys
+        # move config by full batch size even if current batch is smaller
+        ptr = (ptr + batch_size) % k
+
+        self.moco_queue_ptr[0] = ptr
+
+    @torch.no_grad()
+    def _batch_shuffle_ddp(self, x):  # pragma: no-cover
+        """
+        Batch shuffle, for making use of BatchNorm.
+        *** Only support DistributedDataParallel (DDP) model. ***
+        """
+        # gather from all gpus
+        batch_size_this = x.shape[0]
+        x_gather = concat_all_gather(x)
+        batch_size_all = x_gather.shape[0]
+
+        num_gpus = batch_size_all // batch_size_this
+
+        # random shuffle index
+        idx_shuffle = torch.randperm(batch_size_all).cuda()
+
+        # broadcast to all gpus
+        torch.distributed.broadcast(idx_shuffle, src=0)
+
+        # index for restoring
+        idx_unshuffle = torch.argsort(idx_shuffle)
+
+        # shuffled index for this gpu
+        gpu_idx = torch.distributed.get_rank()
+        idx_this = idx_shuffle.view(num_gpus, -1)[gpu_idx]
+
+        return x_gather[idx_this], idx_unshuffle
+
+    @torch.no_grad()
+    def _batch_unshuffle_ddp(self, x, idx_unshuffle):  # pragma: no-cover
+        """
+        Undo batch shuffle.
+        *** Only support DistributedDataParallel (DDP) model. ***
+        """
+        # gather from all gpus
+        batch_size_this = x.shape[0]
+        x_gather = concat_all_gather(x)
+        batch_size_all = x_gather.shape[0]
+
+        num_gpus = batch_size_all // batch_size_this
+
+        # restored index for this gpu
+        gpu_idx = torch.distributed.get_rank()
+        idx_this = idx_unshuffle.view(num_gpus, -1)[gpu_idx]
+
+        return x_gather[idx_this]
 
 
 class TransferSystem(pl.LightningModule):
@@ -205,7 +324,7 @@ class TransferSystem(pl.LightningModule):
     def create_model(self):
         dataset_name = self.config.data_params.dataset
         NUM_CLASS_DICT = {'cifar10': 10, 'imagenet': 1000}
-        model = LogisticRegression(512*4*4, NUM_CLASS_DICT[dataset_name])
+        model = LogisticRegression(512*7*7, NUM_CLASS_DICT[dataset_name])
         return model
 
     def forward(self, img):
@@ -250,7 +369,7 @@ class TransferSystem(pl.LightningModule):
             'val_acc': num_correct / float(num_total)
         })
 
-    def validation_end(self, outputs):
+    def validation_epoch_end(self, outputs):
         metrics = {}
         for key in outputs[0].keys():
             metrics[key] = torch.tensor([elem[key] for elem in outputs]).float().mean()
